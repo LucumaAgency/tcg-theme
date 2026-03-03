@@ -1,4 +1,13 @@
-<?php 
+<?php
+/**
+ * TCG Theme — Functions
+ */
+
+// ─── CPT, Taxonomías y Meta Fields ───
+require_once __DIR__ . '/includes/cpt-ygo-card.php';
+require_once __DIR__ . '/includes/taxonomies.php';
+require_once __DIR__ . '/includes/meta-ygo-card.php';
+
 /**
  * Register/enqueue custom scripts and styles
  */
