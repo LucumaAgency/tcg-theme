@@ -54,6 +54,14 @@ function tcg_register_ygo_card_meta() {
 		'show_in_rest' => true,
 		'auth_callback' => function() { return current_user_can( 'edit_posts' ); },
 	] );
+
+	// Card sets con códigos (JSON string)
+	register_post_meta( 'ygo_card', '_ygo_card_sets', [
+		'type'         => 'string',
+		'single'       => true,
+		'show_in_rest' => true,
+		'auth_callback' => function() { return current_user_can( 'edit_posts' ); },
+	] );
 }
 
 /**
@@ -137,6 +145,28 @@ function tcg_render_ygo_card_meta_box( $post ) {
 	}
 
 	echo '</tbody></table>';
+
+	// Card Sets table (set_code, set_rarity, set_price).
+	$sets_json = get_post_meta( $post->ID, '_ygo_card_sets', true );
+	$sets_data = $sets_json ? json_decode( $sets_json, true ) : [];
+
+	if ( ! empty( $sets_data ) ) {
+		echo '<h4 style="margin-top:20px;">Sets</h4>';
+		echo '<table class="widefat fixed striped">';
+		echo '<thead><tr><th>Set</th><th>Código</th><th>Rareza</th><th>Precio</th></tr></thead>';
+		echo '<tbody>';
+		foreach ( $sets_data as $cs ) {
+			echo '<tr>';
+			echo '<td>' . esc_html( $cs['set_name'] ?? '' ) . '</td>';
+			echo '<td><code>' . esc_html( $cs['set_code'] ?? '' ) . '</code></td>';
+			echo '<td>' . esc_html( $cs['set_rarity'] ?? '' ) . '</td>';
+			echo '<td>' . esc_html( $cs['set_price'] ?? '' ) . '</td>';
+			echo '</tr>';
+		}
+		echo '</tbody></table>';
+	} else {
+		echo '<p class="description" style="margin-top:15px;">No hay datos de sets importados. Re-importa el set para obtener los códigos.</p>';
+	}
 }
 
 /**
