@@ -1,6 +1,6 @@
 <?php
 /**
- * Taxonomías custom para ygo_card y ygo_listing
+ * Taxonomías custom para ygo_card y product (WooCommerce)
  */
 
 add_action( 'init', 'tcg_register_taxonomies' );
@@ -48,7 +48,7 @@ function tcg_register_taxonomies() {
 	// ─── Taxonomías compartidas (ygo_card + ygo_listing) ───
 
 	// Set: Duel Power, Legend of Blue Eyes, Structure Deck Cyber Strike, etc.
-	register_taxonomy( 'ygo_set', [ 'ygo_card', 'ygo_listing' ], [
+	register_taxonomy( 'ygo_set', [ 'ygo_card', 'product' ], [
 		'labels'       => tcg_tax_labels( 'Set', 'Sets' ),
 		'hierarchical' => false,
 		'public'       => true,
@@ -56,10 +56,10 @@ function tcg_register_taxonomies() {
 		'show_in_rest' => true,
 	] );
 
-	// ─── Taxonomías exclusivas de ygo_listing ───
+	// ─── Taxonomías de listing (product WooCommerce) ───
 
 	// Rarity: Common, Rare, Super Rare, Ultra Rare, Secret Rare, etc.
-	register_taxonomy( 'ygo_rarity', 'ygo_listing', [
+	register_taxonomy( 'ygo_rarity', 'product', [
 		'labels'       => tcg_tax_labels( 'Rareza', 'Rarezas' ),
 		'hierarchical' => true,
 		'public'       => true,
@@ -68,7 +68,7 @@ function tcg_register_taxonomies() {
 	] );
 
 	// Condition: Near Mint, Lightly Played, Moderately Played, Heavily Played, Damaged
-	register_taxonomy( 'ygo_condition', 'ygo_listing', [
+	register_taxonomy( 'ygo_condition', 'product', [
 		'labels'       => tcg_tax_labels( 'Condición', 'Condiciones' ),
 		'hierarchical' => true,
 		'public'       => true,
@@ -77,7 +77,7 @@ function tcg_register_taxonomies() {
 	] );
 
 	// Printing: 1st Edition, Unlimited, Limited
-	register_taxonomy( 'ygo_printing', 'ygo_listing', [
+	register_taxonomy( 'ygo_printing', 'product', [
 		'labels'       => tcg_tax_labels( 'Printing', 'Printings' ),
 		'hierarchical' => true,
 		'public'       => true,
@@ -86,7 +86,7 @@ function tcg_register_taxonomies() {
 	] );
 
 	// Language: English, Spanish, Japanese, Portuguese, etc.
-	register_taxonomy( 'ygo_language', 'ygo_listing', [
+	register_taxonomy( 'ygo_language', 'product', [
 		'labels'       => tcg_tax_labels( 'Idioma', 'Idiomas' ),
 		'hierarchical' => true,
 		'public'       => true,
