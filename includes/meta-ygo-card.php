@@ -12,7 +12,7 @@ add_action( 'init', 'tcg_register_ygo_card_meta' );
  * Registrar meta fields para REST API y queries
  */
 function tcg_register_ygo_card_meta() {
-	$int_fields = [
+	$string_fields = [
 		'_ygo_card_id',
 		'_ygo_atk',
 		'_ygo_def',
@@ -20,18 +20,6 @@ function tcg_register_ygo_card_meta() {
 		'_ygo_rank',
 		'_ygo_linkval',
 		'_ygo_scale',
-	];
-
-	foreach ( $int_fields as $field ) {
-		register_post_meta( 'ygo_card', $field, [
-			'type'          => 'integer',
-			'single'        => true,
-			'show_in_rest'  => true,
-			'auth_callback' => function() { return current_user_can( 'edit_posts' ); },
-		] );
-	}
-
-	$string_fields = [
 		'_ygo_frame_type',
 		'_ygo_typeline',
 		'_ygo_source_url',
