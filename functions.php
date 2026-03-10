@@ -8,56 +8,6 @@ require_once __DIR__ . '/includes/cpt-ygo-card.php';
 require_once __DIR__ . '/includes/taxonomies.php';
 require_once __DIR__ . '/includes/meta-ygo-card.php';
 
-// ─── FIX: Allow /page/N/ on static pages used as shop (Bricks query loop) ───
-add_action( 'pre_get_posts', function( $query ) {
-	if ( is_admin() || ! $query->is_main_query() ) {
-		return;
-	}
-
-	// On a static page with /page/N/, WordPress sets 'page' but not 'paged',
-	// then returns 404 because static pages don't support pagination.
-	// Detect this and force it to load the page normally.
-	$page = (int) $query->get( 'page' );
-	if ( $query->is_singular() && $page > 1 ) {
-		// Tell WP this is paged so Bricks query loop can read it.
-		$query->set( 'paged', $page );
-	}
-} );
-
-add_filter( 'redirect_canonical', function( $redirect_url, $requested_url ) {
-	// Prevent WP from redirecting /page/2/ back to base URL on static pages.
-	if ( is_page() && get_query_var( 'paged' ) > 1 ) {
-		return false;
-	}
-	return $redirect_url;
-}, 10, 2 );
-
-add_action( 'template_redirect', function() {
-	// Prevent 404 on paginated static pages.
-	if ( is_404() ) {
-		global $wp_query;
-		$paged = get_query_var( 'paged' );
-
-		if ( $paged > 1 ) {
-			// Check if there's a page with the current URL minus /page/N/.
-			$request_uri = $_SERVER['REQUEST_URI'];
-			$base_uri    = preg_replace( '#/page/\d+/?$#', '/', $request_uri );
-			$page_id     = url_to_postid( home_url( $base_uri ) );
-
-			if ( $page_id ) {
-				$wp_query->is_404  = false;
-				$wp_query->is_page = true;
-				$wp_query->is_singular = true;
-				$wp_query->queried_object = get_post( $page_id );
-				$wp_query->queried_object_id = $page_id;
-				$wp_query->set( 'page_id', $page_id );
-				$wp_query->set( 'paged', $paged );
-				status_header( 200 );
-			}
-		}
-	}
-}, 1 );
-
 // ─── FIX: Inject mini cart HTML into WooCommerce cart fragments ───
 // 1. AJAX fragments: update mini cart when items are added/removed.
 add_filter( 'woocommerce_add_to_cart_fragments', function( $fragments ) {
