@@ -8,73 +8,86 @@ require_once __DIR__ . '/includes/cpt-ygo-card.php';
 require_once __DIR__ . '/includes/taxonomies.php';
 require_once __DIR__ . '/includes/meta-ygo-card.php';
 
-// ─── DEBUG: Mini Cart Diagnostics (temporary) ───
+// ─── DEBUG: Mini Cart DOM Inspector (temporary) ───
 add_action( 'wp_footer', function() {
 	if ( ! current_user_can( 'manage_options' ) ) {
-		return; // Solo admins ven el debug.
+		return;
 	}
+	?>
+	<script>
+	document.addEventListener('DOMContentLoaded', function() {
+		var info = {};
 
-	$diagnostics = [];
+		// 1. Find Bricks mini cart element
+		var miniCartEl = document.querySelector('.brxe-woocommerce-mini-cart');
+		info['bricks_mini_cart_element'] = miniCartEl ? '✅ found' : '❌ not found';
 
-	// 1. WooCommerce activo?
-	$diagnostics['woocommerce_active'] = class_exists( 'WooCommerce' );
+		if (miniCartEl) {
+			info['mini_cart_classes'] = miniCartEl.className;
+			info['mini_cart_innerHTML_length'] = miniCartEl.innerHTML.length;
 
-	// 2. WC() disponible?
-	$diagnostics['wc_instance'] = function_exists( 'WC' ) && WC() !== null;
+			// 2. Find the cart detail / dropdown
+			var cartDetail = miniCartEl.querySelector('.cart-detail');
+			info['cart_detail_found'] = cartDetail ? '✅ found' : '❌ not found';
+			if (cartDetail) {
+				info['cart_detail_classes'] = cartDetail.className;
+				info['cart_detail_display'] = window.getComputedStyle(cartDetail).display;
+				info['cart_detail_visibility'] = window.getComputedStyle(cartDetail).visibility;
+				info['cart_detail_opacity'] = window.getComputedStyle(cartDetail).opacity;
+				info['cart_detail_innerHTML_length'] = cartDetail.innerHTML.length;
+				info['cart_detail_children'] = cartDetail.children.length;
+				info['cart_detail_innerHTML_preview'] = cartDetail.innerHTML.substring(0, 300);
+			}
 
-	// 3. Cart inicializado?
-	$diagnostics['cart_initialized'] = isset( WC()->cart );
+			// 3. Find WC widget inside
+			var wcWidget = miniCartEl.querySelector('.widget_shopping_cart_content');
+			info['wc_widget_found'] = wcWidget ? '✅ found' : '❌ not found';
+			if (wcWidget) {
+				info['wc_widget_innerHTML_length'] = wcWidget.innerHTML.length;
+				info['wc_widget_innerHTML_preview'] = wcWidget.innerHTML.substring(0, 300);
+			}
 
-	// 4. Items en el carrito
-	$diagnostics['cart_contents_count'] = isset( WC()->cart ) ? WC()->cart->get_cart_contents_count() : 'N/A';
-	$diagnostics['cart_items'] = isset( WC()->cart ) ? count( WC()->cart->get_cart() ) : 'N/A';
+			// 4. Find cart list
+			var cartList = miniCartEl.querySelector('.woocommerce-mini-cart');
+			info['wc_mini_cart_list'] = cartList ? '✅ found (' + cartList.children.length + ' items)' : '❌ not found';
 
-	// 5. Shortcode registrado?
-	global $shortcode_tags;
-	$diagnostics['shortcode_woocommerce_mini_cart'] = isset( $shortcode_tags['woocommerce_mini_cart'] );
-	$diagnostics['shortcode_woocommerce_cart'] = isset( $shortcode_tags['woocommerce_cart'] );
+			// 5. Cart count badge
+			var countBadge = miniCartEl.querySelector('.cart-count, .count, .cart-contents-count');
+			info['count_badge'] = countBadge ? '✅ "' + countBadge.textContent.trim() + '"' : '❌ not found';
+		}
 
-	// 6. Cart fragments script registrado?
-	$diagnostics['wc_cart_fragments_registered'] = wp_script_is( 'wc-cart-fragments', 'registered' );
-	$diagnostics['wc_cart_fragments_enqueued'] = wp_script_is( 'wc-cart-fragments', 'enqueued' );
+		// 6. Other possible mini cart elements
+		var allMiniCarts = document.querySelectorAll('[class*="mini-cart"], [class*="minicart"], [class*="cart-detail"]');
+		info['all_mini_cart_elements'] = allMiniCarts.length + ' found';
+		for (var i = 0; i < Math.min(allMiniCarts.length, 5); i++) {
+			info['  element_' + i] = allMiniCarts[i].tagName + '.' + allMiniCarts[i].className.split(' ').slice(0,3).join('.');
+		}
 
-	// 7. WC AJAX endpoint
-	$diagnostics['wc_ajax_url'] = class_exists( 'WC_AJAX' ) ? \WC_AJAX::get_endpoint( 'get_refreshed_fragments' ) : 'N/A';
+		// 7. WC fragments data
+		info['wc_cart_fragments_params'] = typeof wc_cart_fragments_params !== 'undefined' ? '✅ loaded' : '❌ missing';
+		info['wc_add_to_cart_params'] = typeof wc_add_to_cart_params !== 'undefined' ? '✅ loaded' : '❌ missing';
 
-	// 8. Cart page configurada?
-	$diagnostics['cart_page_id'] = get_option( 'woocommerce_cart_page_id' );
-	$diagnostics['cart_page_exists'] = get_post( get_option( 'woocommerce_cart_page_id' ) ) ? true : false;
+		// 8. Check for fragment targets in DOM
+		var fragmentTarget = document.querySelector('div.widget_shopping_cart_content');
+		info['fragment_target_div'] = fragmentTarget ? '✅ found (len:' + fragmentTarget.innerHTML.length + ')' : '❌ not found';
 
-	// 9. WC session
-	$diagnostics['wc_session_class'] = isset( WC()->session ) ? get_class( WC()->session ) : 'N/A';
-
-	// 10. Render test del mini cart
-	ob_start();
-	if ( function_exists( 'woocommerce_mini_cart' ) ) {
-		woocommerce_mini_cart();
-	}
-	$mini_cart_html = ob_get_clean();
-	$diagnostics['mini_cart_html_length'] = strlen( $mini_cart_html );
-	$diagnostics['mini_cart_html_preview'] = substr( strip_tags( $mini_cart_html ), 0, 200 );
-
-	// 11. WC template path
-	$diagnostics['wc_template_path'] = function_exists( 'wc_get_template_part' ) ? WC()->plugin_path() . '/templates/' : 'N/A';
-
-	// 12. Template overrides
-	$diagnostics['theme_has_wc_folder'] = is_dir( get_stylesheet_directory() . '/woocommerce' );
-	$diagnostics['mini_cart_template_override'] = file_exists( get_stylesheet_directory() . '/woocommerce/cart/mini-cart.php' );
-
-	echo '<!-- TCG DEBUG: Mini Cart Diagnostics -->';
-	echo '<div id="tcg-debug-minicart" style="position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;color:#0f0;font-family:monospace;font-size:12px;padding:15px;z-index:999999;max-height:40vh;overflow-y:auto;border-top:2px solid #0f0;">';
-	echo '<strong style="color:#ff0;font-size:14px;">🔍 TCG DEBUG — Mini Cart</strong>';
-	echo ' <button onclick="this.parentElement.remove()" style="float:right;background:#333;color:#fff;border:1px solid #666;padding:2px 8px;cursor:pointer;">X</button>';
-	echo '<pre style="margin:8px 0 0;white-space:pre-wrap;">';
-	foreach ( $diagnostics as $key => $val ) {
-		$display = is_bool( $val ) ? ( $val ? '✅ true' : '❌ false' ) : $val;
-		echo esc_html( str_pad( $key, 40 ) . ' → ' . $display ) . "\n";
-	}
-	echo '</pre>';
-	echo '</div>';
+		// Build debug panel
+		var panel = document.createElement('div');
+		panel.id = 'tcg-debug-minicart';
+		panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;color:#0f0;font-family:monospace;font-size:12px;padding:15px;z-index:999999;max-height:50vh;overflow-y:auto;border-top:2px solid #0f0;';
+		var html = '<strong style="color:#ff0;font-size:14px;">🔍 TCG DEBUG — Mini Cart DOM</strong>';
+		html += ' <button onclick="this.parentElement.remove()" style="float:right;background:#333;color:#fff;border:1px solid #666;padding:2px 8px;cursor:pointer;">X</button>';
+		html += '<pre style="margin:8px 0 0;white-space:pre-wrap;">';
+		for (var key in info) {
+			var pad = key + '                                        ';
+			html += pad.substring(0, 40) + ' → ' + String(info[key]).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '\n';
+		}
+		html += '</pre>';
+		panel.innerHTML = html;
+		document.body.appendChild(panel);
+	});
+	</script>
+	<?php
 }, 9999 );
 
 /**
