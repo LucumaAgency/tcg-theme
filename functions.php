@@ -8,26 +8,6 @@ require_once __DIR__ . '/includes/cpt-ygo-card.php';
 require_once __DIR__ . '/includes/taxonomies.php';
 require_once __DIR__ . '/includes/meta-ygo-card.php';
 
-// ─── FIX: Allow pagination on static pages (Shop, archives in Bricks) ───
-add_action( 'pre_get_posts', function( $query ) {
-	if ( is_admin() || ! $query->is_main_query() ) {
-		return;
-	}
-
-	// Fix 404 on paginated static pages (e.g. Shop page with Bricks query loop).
-	if ( $query->is_singular && $query->get( 'page' ) > 1 ) {
-		$query->set( 'paged', $query->get( 'page' ) );
-	}
-} );
-
-add_filter( 'redirect_canonical', function( $redirect_url ) {
-	// Prevent WordPress from redirecting /page/2/ to the base URL on static pages.
-	if ( is_paged() && is_singular() ) {
-		return false;
-	}
-	return $redirect_url;
-} );
-
 // ─── FIX: Inject mini cart HTML into WooCommerce cart fragments ───
 // 1. AJAX fragments: update mini cart when items are added/removed.
 add_filter( 'woocommerce_add_to_cart_fragments', function( $fragments ) {
