@@ -8,6 +8,22 @@ require_once __DIR__ . '/includes/cpt-ygo-card.php';
 require_once __DIR__ . '/includes/taxonomies.php';
 require_once __DIR__ . '/includes/meta-ygo-card.php';
 
+// ─── FIX: Prevent 404 on paginated shop archive (products are hidden, Bricks queries ygo_card) ───
+add_action( 'wp', function() {
+	global $wp_query;
+
+	// Shop archive paged returns 404 because all products are catalog_visibility:hidden (0 results).
+	// But Bricks query loop fetches ygo_card independently, so the page is valid.
+	if ( $wp_query->is_404
+		&& $wp_query->get( 'post_type' ) === 'product'
+		&& $wp_query->get( 'paged' ) > 1
+	) {
+		$wp_query->is_404    = false;
+		$wp_query->is_archive = true;
+		status_header( 200 );
+	}
+} );
+
 // ─── DEBUG: Pagination diagnostics (temporary) ───
 add_action( 'wp_footer', function() {
 	if ( ! current_user_can( 'manage_options' ) ) {
