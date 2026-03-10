@@ -8,84 +8,114 @@ require_once __DIR__ . '/includes/cpt-ygo-card.php';
 require_once __DIR__ . '/includes/taxonomies.php';
 require_once __DIR__ . '/includes/meta-ygo-card.php';
 
-// ─── DEBUG: Mini Cart DOM Inspector (temporary) ───
+// ─── DEBUG: Cart Fragments Inspector (temporary) ───
 add_action( 'wp_footer', function() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return;
 	}
 	?>
 	<script>
-	document.addEventListener('DOMContentLoaded', function() {
-		var info = {};
+	(function() {
+		// Intercept the WC fragments AJAX call
+		var origOpen = XMLHttpRequest.prototype.open;
+		var origSend = XMLHttpRequest.prototype.send;
 
-		// 1. Find Bricks mini cart element
-		var miniCartEl = document.querySelector('.brxe-woocommerce-mini-cart');
-		info['bricks_mini_cart_element'] = miniCartEl ? '✅ found' : '❌ not found';
+		XMLHttpRequest.prototype.open = function(method, url) {
+			this._tcgUrl = url;
+			return origOpen.apply(this, arguments);
+		};
 
-		if (miniCartEl) {
-			info['mini_cart_classes'] = miniCartEl.className;
-			info['mini_cart_innerHTML_length'] = miniCartEl.innerHTML.length;
+		XMLHttpRequest.prototype.send = function() {
+			var self = this;
+			if (self._tcgUrl && self._tcgUrl.indexOf('get_refreshed_fragments') !== -1) {
+				self.addEventListener('load', function() {
+					try {
+						var data = JSON.parse(self.responseText);
+						var info = {};
+						info['fragments_url'] = self._tcgUrl;
+						info['response_status'] = self.status;
+						info['has_fragments'] = data.fragments ? '✅ yes (' + Object.keys(data.fragments).length + ' keys)' : '❌ no';
+						info['has_cart_hash'] = data.cart_hash ? '✅ ' + data.cart_hash : '❌ no';
 
-			// 2. Find the cart detail / dropdown
-			var cartDetail = miniCartEl.querySelector('.cart-detail');
-			info['cart_detail_found'] = cartDetail ? '✅ found' : '❌ not found';
-			if (cartDetail) {
-				info['cart_detail_classes'] = cartDetail.className;
-				info['cart_detail_display'] = window.getComputedStyle(cartDetail).display;
-				info['cart_detail_visibility'] = window.getComputedStyle(cartDetail).visibility;
-				info['cart_detail_opacity'] = window.getComputedStyle(cartDetail).opacity;
-				info['cart_detail_innerHTML_length'] = cartDetail.innerHTML.length;
-				info['cart_detail_children'] = cartDetail.children.length;
-				info['cart_detail_innerHTML_preview'] = cartDetail.innerHTML.substring(0, 300);
+						if (data.fragments) {
+							var keys = Object.keys(data.fragments);
+							for (var i = 0; i < keys.length; i++) {
+								var val = String(data.fragments[keys[i]]);
+								info['fragment_' + i + '_key'] = keys[i];
+								info['fragment_' + i + '_len'] = val.length;
+								if (keys[i].indexOf('widget_shopping_cart_content') !== -1) {
+									info['*** MINI CART FRAGMENT ***'] = val.substring(0, 500);
+								}
+							}
+						}
+
+						// Check widget after fragments applied
+						setTimeout(function() {
+							var widget = document.querySelector('.widget_shopping_cart_content');
+							info['widget_after_fragments_len'] = widget ? widget.innerHTML.length : 'not found';
+							info['widget_after_fragments_preview'] = widget ? widget.innerHTML.substring(0, 200) : 'N/A';
+							showPanel(info);
+						}, 500);
+					} catch(e) {
+						showPanel({error: e.message, responsePreview: self.responseText.substring(0, 500)});
+					}
+				});
+			}
+			return origSend.apply(this, arguments);
+		};
+
+		// Also check on page load
+		document.addEventListener('DOMContentLoaded', function() {
+			var widget = document.querySelector('.widget_shopping_cart_content');
+			var stored = sessionStorage.getItem('wc_fragments');
+			var info = {
+				'page_load_widget_len': widget ? widget.innerHTML.length : 'not found',
+				'sessionStorage_fragments': stored ? '✅ found (len:' + stored.length + ')' : '❌ not found',
+			};
+
+			if (stored) {
+				try {
+					var frags = JSON.parse(stored);
+					var keys = Object.keys(frags);
+					info['stored_fragment_keys'] = keys.length;
+					for (var i = 0; i < keys.length; i++) {
+						if (keys[i].indexOf('widget_shopping_cart_content') !== -1) {
+							info['*** STORED MINI CART ***'] = String(frags[keys[i]]).substring(0, 300);
+						}
+					}
+				} catch(e) {}
 			}
 
-			// 3. Find WC widget inside
-			var wcWidget = miniCartEl.querySelector('.widget_shopping_cart_content');
-			info['wc_widget_found'] = wcWidget ? '✅ found' : '❌ not found';
-			if (wcWidget) {
-				info['wc_widget_innerHTML_length'] = wcWidget.innerHTML.length;
-				info['wc_widget_innerHTML_preview'] = wcWidget.innerHTML.substring(0, 300);
+			// Try different storage keys WC might use
+			for (var j = 0; j < sessionStorage.length; j++) {
+				var skey = sessionStorage.key(j);
+				if (skey.indexOf('wc') !== -1 || skey.indexOf('cart') !== -1) {
+					info['sessionStorage_' + skey] = sessionStorage.getItem(skey).substring(0, 100);
+				}
 			}
 
-			// 4. Find cart list
-			var cartList = miniCartEl.querySelector('.woocommerce-mini-cart');
-			info['wc_mini_cart_list'] = cartList ? '✅ found (' + cartList.children.length + ' items)' : '❌ not found';
+			showPanel(info);
+		});
 
-			// 5. Cart count badge
-			var countBadge = miniCartEl.querySelector('.cart-count, .count, .cart-contents-count');
-			info['count_badge'] = countBadge ? '✅ "' + countBadge.textContent.trim() + '"' : '❌ not found';
+		function showPanel(info) {
+			var existing = document.getElementById('tcg-debug-fragments');
+			if (existing) existing.remove();
+
+			var panel = document.createElement('div');
+			panel.id = 'tcg-debug-fragments';
+			panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;color:#0f0;font-family:monospace;font-size:11px;padding:15px;z-index:999999;max-height:50vh;overflow-y:auto;border-top:2px solid #0f0;';
+			var html = '<strong style="color:#ff0;font-size:14px;">🔍 TCG DEBUG — Cart Fragments</strong>';
+			html += ' <button onclick="this.parentElement.remove()" style="float:right;background:#333;color:#fff;border:1px solid #666;padding:2px 8px;cursor:pointer;">X</button>';
+			html += '<pre style="margin:8px 0 0;white-space:pre-wrap;">';
+			for (var key in info) {
+				var pad = key + '                                          ';
+				html += pad.substring(0, 42) + ' → ' + String(info[key]).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '\n';
+			}
+			html += '</pre>';
+			panel.innerHTML = html;
+			document.body.appendChild(panel);
 		}
-
-		// 6. Other possible mini cart elements
-		var allMiniCarts = document.querySelectorAll('[class*="mini-cart"], [class*="minicart"], [class*="cart-detail"]');
-		info['all_mini_cart_elements'] = allMiniCarts.length + ' found';
-		for (var i = 0; i < Math.min(allMiniCarts.length, 5); i++) {
-			info['  element_' + i] = allMiniCarts[i].tagName + '.' + allMiniCarts[i].className.split(' ').slice(0,3).join('.');
-		}
-
-		// 7. WC fragments data
-		info['wc_cart_fragments_params'] = typeof wc_cart_fragments_params !== 'undefined' ? '✅ loaded' : '❌ missing';
-		info['wc_add_to_cart_params'] = typeof wc_add_to_cart_params !== 'undefined' ? '✅ loaded' : '❌ missing';
-
-		// 8. Check for fragment targets in DOM
-		var fragmentTarget = document.querySelector('div.widget_shopping_cart_content');
-		info['fragment_target_div'] = fragmentTarget ? '✅ found (len:' + fragmentTarget.innerHTML.length + ')' : '❌ not found';
-
-		// Build debug panel
-		var panel = document.createElement('div');
-		panel.id = 'tcg-debug-minicart';
-		panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;color:#0f0;font-family:monospace;font-size:12px;padding:15px;z-index:999999;max-height:50vh;overflow-y:auto;border-top:2px solid #0f0;';
-		var html = '<strong style="color:#ff0;font-size:14px;">🔍 TCG DEBUG — Mini Cart DOM</strong>';
-		html += ' <button onclick="this.parentElement.remove()" style="float:right;background:#333;color:#fff;border:1px solid #666;padding:2px 8px;cursor:pointer;">X</button>';
-		html += '<pre style="margin:8px 0 0;white-space:pre-wrap;">';
-		for (var key in info) {
-			var pad = key + '                                        ';
-			html += pad.substring(0, 40) + ' → ' + String(info[key]).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '\n';
-		}
-		html += '</pre>';
-		panel.innerHTML = html;
-		document.body.appendChild(panel);
-	});
+	})();
 	</script>
 	<?php
 }, 9999 );
