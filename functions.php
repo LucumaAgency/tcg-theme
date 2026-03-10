@@ -9,6 +9,7 @@ require_once __DIR__ . '/includes/taxonomies.php';
 require_once __DIR__ . '/includes/meta-ygo-card.php';
 
 // ─── FIX: Inject mini cart HTML into WooCommerce cart fragments ───
+// 1. AJAX fragments: update mini cart when items are added/removed.
 add_filter( 'woocommerce_add_to_cart_fragments', function( $fragments ) {
 	ob_start();
 	woocommerce_mini_cart();
@@ -18,6 +19,30 @@ add_filter( 'woocommerce_add_to_cart_fragments', function( $fragments ) {
 
 	return $fragments;
 } );
+
+// 2. SSR: pre-fill mini cart on page load so it's not empty on first render.
+add_action( 'wp_footer', function() {
+	if ( ! class_exists( 'WooCommerce' ) || ! isset( WC()->cart ) ) {
+		return;
+	}
+	ob_start();
+	woocommerce_mini_cart();
+	$mini_cart_html = ob_get_clean();
+
+	if ( empty( $mini_cart_html ) ) {
+		return;
+	}
+	?>
+	<script>
+	document.addEventListener('DOMContentLoaded', function() {
+		var widget = document.querySelector('.widget_shopping_cart_content');
+		if (widget && widget.innerHTML.trim().length === 0) {
+			widget.innerHTML = <?php echo wp_json_encode( $mini_cart_html ); ?>;
+		}
+	});
+	</script>
+	<?php
+}, 50 );
 
 /**
  * Register/enqueue custom scripts and styles
