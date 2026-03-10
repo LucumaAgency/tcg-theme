@@ -8,6 +8,17 @@ require_once __DIR__ . '/includes/cpt-ygo-card.php';
 require_once __DIR__ . '/includes/taxonomies.php';
 require_once __DIR__ . '/includes/meta-ygo-card.php';
 
+// ─── FIX: Inject mini cart HTML into WooCommerce cart fragments ───
+add_filter( 'woocommerce_add_to_cart_fragments', function( $fragments ) {
+	ob_start();
+	woocommerce_mini_cart();
+	$mini_cart_html = ob_get_clean();
+
+	$fragments['div.widget_shopping_cart_content'] = '<div class="widget_shopping_cart_content">' . $mini_cart_html . '</div>';
+
+	return $fragments;
+} );
+
 // ─── DEBUG: Cart Fragments Inspector (temporary) ───
 add_action( 'wp_footer', function() {
 	if ( ! current_user_can( 'manage_options' ) ) {
