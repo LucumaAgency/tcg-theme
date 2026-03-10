@@ -13,6 +13,11 @@ require_once __DIR__ . '/includes/meta-ygo-card.php';
  */
 add_action( 'wp_enqueue_scripts', function() {
 	wp_enqueue_style( 'bricks-child', get_stylesheet_uri(), ['bricks-frontend'], filemtime( get_stylesheet_directory() . '/style.css' ) );
+
+	// Force WooCommerce cart fragments on all pages (fixes empty mini cart on non-WC pages).
+	if ( class_exists( 'WooCommerce' ) ) {
+		wp_enqueue_script( 'wc-cart-fragments' );
+	}
 } );
 
 /**
