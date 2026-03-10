@@ -8,6 +8,63 @@ require_once __DIR__ . '/includes/cpt-ygo-card.php';
 require_once __DIR__ . '/includes/taxonomies.php';
 require_once __DIR__ . '/includes/meta-ygo-card.php';
 
+// ─── DEBUG: Pagination diagnostics (temporary) ───
+add_action( 'wp_footer', function() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+
+	global $wp_query, $wp;
+
+	$info = [];
+	$info['current_url']        = home_url( $wp->request );
+	$info['is_page']            = is_page() ? 'true' : 'false';
+	$info['is_singular']        = is_singular() ? 'true' : 'false';
+	$info['is_archive']         = is_archive() ? 'true' : 'false';
+	$info['is_home']            = is_home() ? 'true' : 'false';
+	$info['is_front_page']      = is_front_page() ? 'true' : 'false';
+	$info['is_404']             = is_404() ? '❌ YES 404' : '✅ not 404';
+	$info['is_paged']           = is_paged() ? 'true' : 'false';
+	$info['query_var_paged']    = get_query_var( 'paged', 0 );
+	$info['query_var_page']     = get_query_var( 'page', 0 );
+	$info['queried_object_id']  = get_queried_object_id();
+	$info['queried_object_type'] = get_queried_object() ? get_class( get_queried_object() ) : 'null';
+	$info['post_type']          = $wp_query->get( 'post_type' ) ?: 'default';
+	$info['posts_per_page_wp']  = get_option( 'posts_per_page' );
+	$info['query_posts_per_page'] = $wp_query->get( 'posts_per_page' );
+	$info['found_posts']        = $wp_query->found_posts;
+	$info['max_num_pages']      = $wp_query->max_num_pages;
+	$info['post_count']         = $wp_query->post_count;
+
+	// WooCommerce shop page
+	if ( function_exists( 'wc_get_page_id' ) ) {
+		$shop_id = wc_get_page_id( 'shop' );
+		$info['wc_shop_page_id']    = $shop_id;
+		$info['wc_is_shop']         = function_exists( 'is_shop' ) && is_shop() ? 'true' : 'false';
+		$info['current_page_id']    = get_the_ID();
+		$info['is_wc_shop_page']    = ( (int) get_the_ID() === (int) $shop_id ) ? 'true' : 'false';
+	}
+
+	// Rewrite rules check
+	$info['rewrite_request']    = $wp->request;
+	$info['rewrite_matched_rule'] = $wp->matched_rule ?: 'none';
+	$info['rewrite_matched_query'] = $wp->matched_query ?: 'none';
+
+	// Permalink structure
+	$info['permalink_structure'] = get_option( 'permalink_structure' );
+
+	echo '<div id="tcg-debug-pagination" style="position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;color:#0f0;font-family:monospace;font-size:11px;padding:15px;z-index:999999;max-height:50vh;overflow-y:auto;border-top:2px solid #0f0;">';
+	echo '<strong style="color:#ff0;font-size:14px;">🔍 TCG DEBUG — Pagination</strong>';
+	echo ' <button onclick="this.parentElement.remove()" style="float:right;background:#333;color:#fff;border:1px solid #666;padding:2px 8px;cursor:pointer;">X</button>';
+	echo '<pre style="margin:8px 0 0;white-space:pre-wrap;">';
+	foreach ( $info as $key => $val ) {
+		$pad = str_pad( $key, 30 );
+		echo esc_html( $pad . ' → ' . $val ) . "\n";
+	}
+	echo '</pre>';
+	echo '</div>';
+} );
+
 // ─── FIX: Inject mini cart HTML into WooCommerce cart fragments ───
 // 1. AJAX fragments: update mini cart when items are added/removed.
 add_filter( 'woocommerce_add_to_cart_fragments', function( $fragments ) {
