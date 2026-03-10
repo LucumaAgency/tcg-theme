@@ -18,9 +18,15 @@ add_action( 'wp', function() {
 		&& $wp_query->get( 'post_type' ) === 'product'
 		&& $wp_query->get( 'paged' ) > 1
 	) {
-		$wp_query->is_404    = false;
+		$wp_query->is_404     = false;
 		$wp_query->is_archive = true;
+		$wp_query->is_post_type_archive = true;
 		status_header( 200 );
+
+		// Restore WooCommerce shop query vars so is_shop() returns true.
+		$wp_query->set( 'wc_query', 'product_query' );
+		$wp_query->queried_object = get_post_type_object( 'product' );
+		$wp_query->queried_object_id = 0;
 	}
 } );
 
