@@ -77,7 +77,75 @@ add_action( 'wp_enqueue_scripts', function() {
 	if ( class_exists( 'WooCommerce' ) ) {
 		wp_enqueue_script( 'wc-cart-fragments' );
 	}
+
+	// Live search: preload cards for instant client-side search.
+	if ( ! is_admin() ) {
+		wp_enqueue_style(
+			'tcg-live-search',
+			get_stylesheet_directory_uri() . '/assets/css/live-search.css',
+			[],
+			filemtime( get_stylesheet_directory() . '/assets/css/live-search.css' )
+		);
+
+		wp_enqueue_script(
+			'tcg-live-search',
+			get_stylesheet_directory_uri() . '/assets/js/live-search.js',
+			[],
+			filemtime( get_stylesheet_directory() . '/assets/js/live-search.js' ),
+			true
+		);
+
+		wp_localize_script( 'tcg-live-search', 'tcgLiveSearch', [
+			'cards'       => tcg_get_cards_for_live_search(),
+			'cardBaseUrl' => home_url( '/carta/' ),
+		] );
+	}
 } );
+
+/**
+ * Get all ygo_card posts for client-side live search.
+ * Reuses the tcg_dokan_cards_js transient if available, otherwise builds its own.
+ */
+function tcg_get_cards_for_live_search() {
+	$cache_key = 'tcg_theme_live_search';
+	$cached    = get_transient( $cache_key );
+
+	if ( false !== $cached ) {
+		return $cached;
+	}
+
+	global $wpdb;
+
+	$rows = $wpdb->get_results(
+		"SELECT p.ID, p.post_title, p.post_name,
+			MAX(CASE WHEN pm.meta_key = '_ygo_set_code' THEN pm.meta_value END) AS set_code,
+			MAX(CASE WHEN pm.meta_key = '_ygo_set_rarity' THEN pm.meta_value END) AS set_rarity
+		FROM {$wpdb->posts} p
+		LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key IN ('_ygo_set_code', '_ygo_set_rarity')
+		WHERE p.post_type = 'ygo_card' AND p.post_status = 'publish'
+		GROUP BY p.ID
+		ORDER BY p.post_title ASC",
+		ARRAY_A
+	);
+
+	$cards = [];
+	foreach ( $rows as $row ) {
+		$set_code = $row['set_code'] ?: '';
+		$thumb    = get_the_post_thumbnail_url( (int) $row['ID'], 'thumbnail' );
+
+		$cards[] = [
+			'id'         => (int) $row['ID'],
+			'label'      => $row['post_title'] . ( $set_code ? " [{$set_code}]" : '' ),
+			'slug'       => $row['post_name'],
+			'set_rarity' => $row['set_rarity'] ?: '',
+			'thumb'      => $thumb ?: '',
+		];
+	}
+
+	set_transient( $cache_key, $cards, HOUR_IN_SECONDS );
+
+	return $cards;
+}
 
 /**
  * Register custom elements
