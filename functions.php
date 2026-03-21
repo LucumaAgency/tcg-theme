@@ -30,6 +30,12 @@ add_action( 'wp', function() {
 	}
 } );
 
+// ─── FIX: ygo_set archive must query only ygo_card (not hidden products) ───
+add_action( 'pre_get_posts', function( $query ) {
+	if ( ! is_admin() && $query->is_main_query() && is_tax( 'ygo_set' ) ) {
+		$query->set( 'post_type', 'ygo_card' );
+	}
+} );
 
 // ─── FIX: Inject mini cart HTML into WooCommerce cart fragments ───
 // 1. AJAX fragments: update mini cart when items are added/removed.
