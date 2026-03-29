@@ -43,6 +43,14 @@ add_action( 'save_post_ygo_card', function() {
 	delete_transient( 'tcg_manager_cards_js' );
 } );
 
+// ─── Rename "Población" to "Distrito" in checkout fields ───
+add_filter( 'woocommerce_default_address_fields', function( $fields ) {
+	if ( isset( $fields['city'] ) ) {
+		$fields['city']['label'] = __( 'Distrito', 'tcg-theme' );
+	}
+	return $fields;
+} );
+
 // ─── FIX: Inject mini cart HTML into WooCommerce cart fragments ───
 // 1. AJAX fragments: update mini cart when items are added/removed.
 add_filter( 'woocommerce_add_to_cart_fragments', function( $fragments ) {
