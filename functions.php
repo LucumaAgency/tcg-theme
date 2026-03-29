@@ -41,6 +41,7 @@ add_action( 'pre_get_posts', function( $query ) {
 add_action( 'transition_post_status', function( $new_status, $old_status, $post ) {
 	if ( $post->post_type === 'ygo_card' && $new_status !== $old_status ) {
 		delete_transient( 'tcg_theme_live_search' );
+		delete_transient( 'tcg_manager_cards_js' );
 	}
 }, 10, 3 );
 
