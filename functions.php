@@ -128,6 +128,7 @@ function tcg_get_cards_for_live_search() {
 			MAX(CASE WHEN pm.meta_key = '_ygo_set_rarity' THEN pm.meta_value END) AS set_rarity
 		FROM {$wpdb->posts} p
 		LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key IN ('_ygo_set_code', '_ygo_set_rarity')
+		INNER JOIN {$wpdb->postmeta} pl ON p.ID = pl.post_id AND pl.meta_key = '_tcg_has_listings' AND pl.meta_value = '1'
 		WHERE p.post_type = 'ygo_card' AND p.post_status = 'publish'
 		GROUP BY p.ID
 		ORDER BY p.post_title ASC",
