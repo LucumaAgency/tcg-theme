@@ -37,13 +37,11 @@ add_action( 'pre_get_posts', function( $query ) {
 	}
 } );
 
-// ─── Invalidate live search cache when a ygo_card changes status ───
-add_action( 'transition_post_status', function( $new_status, $old_status, $post ) {
-	if ( $post->post_type === 'ygo_card' && $new_status !== $old_status ) {
-		delete_transient( 'tcg_theme_live_search' );
-		delete_transient( 'tcg_manager_cards_js' );
-	}
-}, 10, 3 );
+// ─── Invalidate live search caches when a ygo_card is saved or changes status ───
+add_action( 'save_post_ygo_card', function() {
+	delete_transient( 'tcg_theme_live_search' );
+	delete_transient( 'tcg_manager_cards_js' );
+} );
 
 // ─── FIX: Inject mini cart HTML into WooCommerce cart fragments ───
 // 1. AJAX fragments: update mini cart when items are added/removed.
